@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFe/NFCe XML Processor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #fieldList::-webkit-scrollbar, #dataPreview::-webkit-scrollbar {
+            width: 8px;
+        }
+        #fieldList::-webkit-scrollbar-track, #dataPreview::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        #fieldList::-webkit-scrollbar-thumb, #dataPreview::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        #fieldList::-webkit-scrollbar-thumb:hover, #dataPreview::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .tree-node {
+            cursor: pointer;
+        }
+        .tree-node:hover {
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+    <div class="container mx-auto p-6 max-w-4xl">
+        <h1 class="text-3xl font-bold text-center mb-8 text-indigo-600">NFe/NFCe XML Processor</h1>
+
+        <div class="section bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-semibold mb-4">1. Importar XML Matriz</h2>
+            <div class="flex items-center space-x-4">
+                <input type="file" id="matrixFile" accept=".xml" class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
+                <button onclick="loadMatrix()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Carregar Matriz</button>
+            </div>
+        </div>
+
+        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="fieldSelection">
+            <h2 class="text-xl font-semibold mb-4">2. Selecionar Campos</h2>
+            <div class="flex items-center space-x-4 mb-4">
+                <input type="file" id="profileFile" accept=".json" class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
+                <button onclick="loadProfile()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Carregar Perfil</button>
+            </div>
+            <div id="fieldList" class="max-h-64 overflow-y-auto border border-gray-200 p-4 rounded-md bg-gray-50 mb-4"></div>
+            <div class="flex space-x-4">
+                <button onclick="confirmFields()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Confirmar Campos</button>
+                <button onclick="saveProfile()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Salvar Perfil</button>
+            </div>
+        </div>
+
+        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="xmlImport">
+            <h2 class="text-xl font-semibold mb-4">3. Importar XMLs de Dados</h2>
+            <div class="flex items-center space-x-4">
+                <input type="file" id="dataFiles" accept=".xml" multiple class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
+                <button onclick="processXMLs()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Processar XMLs</button>
+            </div>
+        </div>
+
+        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="progressSection">
+            <h2 class="text-xl font-semibold mb-4">Progresso</h2>
+            <div id="progressBar" class="w-full h-5 bg-gray-200 rounded-full overflow-hidden">
+                <div id="progress" class="h-full bg-indigo-500 rounded-full" style="width: 0%; transition: width 0.3s;"></div>
+            </div>
+            <p id="progressText" class="mt-2 text-sm text-gray-600">0% - 0/0 arquivos processados</p>
+            <p id="timeText" class="text-sm text-gray-600">Tempo decorrido: 0s | Estimado: 0s</p>
+            <div id="errorLog" class="text-red-500 mt-2 text-sm"></div>
+        </div>
+
+        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="downloadSection">
+            <h2 class="text-xl font-semibold mb-4">4. Baixar Relatório</h2>
+            <div id="dataPreview" class="max-h-64 overflow-y-auto border border-gray-200 p-4 rounded-md bg-gray-50 mb-4"></div>
+            <div class="flex space-x-4">
+                <button onclick="downloadJSON()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Baixar JSON</button>
+                <button onclick="downloadCSV()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Baixar CSV</button>
+            </div>
+        </div>
+
+        <div class="section bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-4">Configurações</h2>
+            <label class="flex items-center space-x-2 text-sm">
+                <span>Atualizar progresso a cada (ms):</span>
+                <input type="number" id="updateInterval" value="1000" min="100" class="w-24 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </label>
+        </div>
+    </div>
+
+    <script>
+        let matrixFields = {};
+        let selectedFields = [];
+        let xmlData = [];
+        let errors = [];
+
+        function loadMatrix() {
+            const file = document.getElementById('matrixFile').files[0];
+            if (!file) return alert('Selecione um arquivo XML matriz.');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+                    matrixFields = extractFields(xmlDoc);
+                    displayFields();
+                    document.getElementById('fieldSelection').classList.remove('hidden');
+                } catch (err) {
+                    alert('Erro ao processar XML matriz: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function extractFields(xmlDoc) {
+            const fieldTree = {};
+            function traverse(node, parentPath = []) {
+                if (node.nodeType === 1) {
+                    const nodeName = node.nodeName;
+                    const currentPath = [...parentPath, nodeName].join('.');
+                    let fields = [];
+                    for (let child of node.childNodes) {
+                        if (child.nodeType === 1) {
+                            const childName = child.nodeName;
+                            const childPath = [...parentPath, nodeName, childName].join('.');
+                            if (child.childNodes.length === 1 && child.childNodes[0].nodeType === 3) {
+                                fields.push({ name: childName, path: childPath });
+                            }
+                            traverse(child, [...parentPath, nodeName]);
+                        }
+                    }
+                    if (fields.length > 0) {
+                        fieldTree[nodeName] = { path: currentPath, fields };
+                    }
+                }
+            }
+            traverse(xmlDoc.documentElement);
+            return fieldTree;
+        }
+
+        function displayFields() {
+            const fieldList = document.getElementById('fieldList');
+            fieldList.innerHTML = '';
+            Object.keys(matrixFields).sort().forEach(node => {
+                const details = document.createElement('details');
+                details.className = 'tree-node p-2';
+                const summary = document.createElement('summary');
+                summary.className = 'font-medium';
+                summary.textContent = node;
+                details.appendChild(summary);
+                const childList = document.createElement('div');
+                childList.className = 'ml-4 mt-2';
+                const fields = matrixFields[node].fields;
+                fields.sort((a, b) => a.name.localeCompare(b.name)).forEach(field => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-2 text-sm py-1';
+                    label.innerHTML = `<input type="checkbox" value="${field.path}" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500"><span>${field.name}</span>`;
+                    childList.appendChild(label);
+                });
+                details.appendChild(childList);
+                fieldList.appendChild(details);
+            });
+        }
+
+        function saveProfile() {
+            const selected = Array.from(document.querySelectorAll('#fieldList input:checked')).map(input => input.value);
+            if (selected.length === 0) return alert('Selecione pelo menos um campo para salvar o perfil.');
+
+            try {
+                const profileData = { selectedFields: selected };
+                const jsonString = JSON.stringify(profileData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+
+                try {
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'profile_nfe_nfce.json';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (e) {
+                    console.warn('Blob download failed, trying fallback:', e);
+                    const base64 = btoa(unescape(encodeURIComponent(jsonString)));
+                    const dataUri = `data:application/json;base64,${base64}`;
+                    const link = document.createElement('a');
+                    link.href = dataUri;
+                    link.download = 'profile_nfe_nfce.json';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => document.body.removeChild(link), 100);
+                }
+            } catch (e) {
+                alert('Erro ao salvar o perfil: ' + e.message);
+            }
+        }
+
+        function loadProfile() {
+            const file = document.getElementById('profileFile').files[0];
+            if (!file) return alert('Selecione um arquivo de perfil JSON.');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const profileData = JSON.parse(e.target.result);
+                    if (!profileData.selectedFields || !Array.isArray(profileData.selectedFields)) {
+                        throw new Error('Formato de perfil inválido.');
+                    }
+                    selectedFields = profileData.selectedFields;
+                    document.querySelectorAll('#fieldList input').forEach(input => {
+                        input.checked = selectedFields.includes(input.value);
+                    });
+                    alert('Perfil carregado com sucesso!');
+                } catch (err) {
+                    alert('Erro ao carregar o perfil: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function confirmFields() {
+            selectedFields = Array.from(document.querySelectorAll('#fieldList input:checked')).map(input => input.value);
+            if (selectedFields.length === 0) return alert('Selecione pelo menos um campo.');
+            document.getElementById('xmlImport').classList.remove('hidden');
+        }
+
+        async function processXMLs() {
+            const files = document.getElementById('dataFiles').files;
+            if (files.length === 0) return alert('Selecione pelo menos um arquivo XML.');
+
+            xmlData = [];
+            errors = [];
+            const updateInterval = parseInt(document.getElementById('updateInterval').value) || 1000;
+            const progressSection = document.getElementById('progressSection');
+            const progress = document.getElementById('progress');
+            const progressText = document.getElementById('progressText');
+            const timeText = document.getElementById('timeText');
+            const errorLog = document.getElementById('errorLog');
+
+            progressSection.classList.remove('hidden');
+            const startTime = performance.now();
+            let processed = 0;
+            let total = files.length;
+
+            const updateProgress = () => {
+                const percent = (processed / total) * 100;
+                progress.style.width = `${percent}%`;
+                progressText.textContent = `${percent.toFixed(1)}% - ${processed}/${total} arquivos processados`;
+                const elapsed = (performance.now() - startTime) / 1000;
+                const estimated = processed > 0 ? (elapsed / processed) * (total - processed) : 0;
+                timeText.textContent = `Tempo decorrido: ${elapsed.toFixed(1)}s | Estimado: ${estimated.toFixed(1)}s`;
+                errorLog.textContent = errors.length > 0 ? `Erros: ${errors.join('; ')}` : '';
+            };
+
+            for (let file of files) {
+                try {
+                    const data = await readFile(file);
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(data, 'text/xml');
+                    const mod = xmlDoc.querySelector('mod')?.textContent;
+                    if (mod !== '55' && mod !== '65') throw new Error('XML inválido: mod não é 55 ou 65');
+                    const rows = extractData(xmlDoc);
+                    xmlData.push(...rows);
+                    processed++;
+                    if (processed % Math.ceil(total / 100) === 0) {
+                        updateProgress();
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                } catch (err) {
+                    errors.push(`Erro no arquivo ${file.name}: ${err.message}`);
+                    processed++;
+                }
+            }
+
+            updateProgress();
+            displayPreview();
+            document.getElementById('downloadSection').classList.remove('hidden');
+        }
+
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsText(file);
+            });
+        }
+
+        function extractData(xmlDoc) {
+            const rows = [];
+            const repeatingPrefix = 'det';
+            const fieldInstances = selectedFields.map(field => {
+                const parts = field.split('.');
+                const fieldName = parts.pop();
+                const parentPath = parts.join(' > ');
+                const nodes = parentPath ? xmlDoc.querySelectorAll(`${parentPath} > ${fieldName}`) : xmlDoc.querySelectorAll(fieldName);
+                return Array.from(nodes).map(node => node.textContent || '');
+            });
+
+            const nonRepeatingValues = selectedFields.reduce((acc, field, index) => {
+                if (!field.startsWith(repeatingPrefix)) {
+                    acc[field] = fieldInstances[index][0] || '';
+                }
+                return acc;
+            }, {});
+
+            const maxRows = Math.max(1, ...fieldInstances.map(instances => instances.length));
+            for (let i = 0; i < maxRows; i++) {
+                const row = { ...nonRepeatingValues };
+                selectedFields.forEach((field, index) => {
+                    if (field.startsWith(repeatingPrefix)) {
+                        row[field] = fieldInstances[index][i] || '';
+                    }
+                });
+                if (Object.values(row).some(val => val !== '')) {
+                    rows.push(row);
+                }
+            }
+            return rows.length > 0 ? rows : [{}];
+        }
+
+        function displayPreview() {
+            const preview = document.getElementById('dataPreview');
+            preview.innerHTML = '';
+            if (xmlData.length === 0) {
+                preview.innerHTML = '<p class="text-gray-600">Nenhum dado extraído.</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'w-full border-collapse text-sm';
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            selectedFields.forEach(field => {
+                const th = document.createElement('th');
+                th.className = 'border border-gray-300 p-2 bg-gray-100 text-left';
+                th.textContent = field;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            xmlData.forEach(row => {
+                const tr = document.createElement('tr');
+                selectedFields.forEach(field => {
+                    const td = document.createElement('td');
+                    td.className = 'border border-gray-300 p-2';
+                    td.textContent = row[field] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            preview.appendChild(table);
+        }
+
+        function downloadJSON() {
+            if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
+
+            try {
+                const jsonData = xmlData.map(row => {
+                    const obj = {};
+                    selectedFields.forEach(field => {
+                        obj[field.replace(/\./g, '_')] = row[field] || '';
+                    });
+                    return obj;
+                });
+
+                const jsonString = JSON.stringify(jsonData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+
+                try {
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'relatorio_nfe_nfce.json';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (e) {
+                    console.warn('Blob download failed, trying fallback:', e);
+                    const base64 = btoa(unescape(encodeURIComponent(jsonString)));
+                    const dataUri = `data:application/json;base64,${base64}`;
+                    const link = document.createElement('a');
+                    link.href = dataUri;
+                    link.download = 'relatorio_nfe_nfce.json';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => document.body.removeChild(link), 100);
+                }
+            } catch (e) {
+                alert('Erro ao gerar o arquivo JSON: ' + e.message);
+            }
+        }
+
+        function downloadCSV() {
+            if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
+
+            try {
+                const headers = selectedFields.map(field => `"${field.replace(/"/g, '""')}"`).join(';');
+                const rows = xmlData.map(row => selectedFields.map(field => `"${row[field]?.replace(/"/g, '""') || ''}"`).join(';'));
+                const csv = [headers, ...rows].join('\n');
+                const BOM = '\uFEFF';
+                const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
+
+                try {
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'relatorio_nfe_nfce.csv';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (e) {
+                    console.warn('Blob download failed, trying fallback:', e);
+                    const base64 = btoa(unescape(encodeURIComponent(BOM + csv)));
+                    const dataUri = `data:text/csv;base64,${base64}`;
+                    const link = document.createElement('a');
+                    link.href = dataUri;
+                    link.download = 'relatorio_nfe_nfce.csv';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => document.body.removeChild(link), 100);
+                }
+            } catch (e) {
+                alert('Erro ao gerar o arquivo CSV: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
