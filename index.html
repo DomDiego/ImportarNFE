@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NFe/NFCe XML Processor</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <style>
         #fieldList::-webkit-scrollbar, #dataPreview::-webkit-scrollbar {
             width: 8px;
@@ -20,17 +24,45 @@
         #fieldList::-webkit-scrollbar-thumb:hover, #dataPreview::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
-        .tree-node {
+        .tree-node summary {
             cursor: pointer;
+            transition: background-color 0.2s;
         }
-        .tree-node:hover {
+        .tree-node summary:hover {
             background-color: #f3f4f6;
+        }
+        .tree-node[open] summary {
+            background-color: #e0e7ff;
+        }
+        .selected-field {
+            background-color: #e0f2fe;
+            border-radius: 4px;
+        }
+        .download-btn {
+            position: relative;
+            transition: all 0.2s;
+        }
+        .download-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        @keyframes spin {
+            to { transform: translateY(-50%) rotate(360deg); }
         }
     </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
-    <div class="container mx-auto p-6 max-w-4xl">
-        <h1 class="text-3xl font-bold text-center mb-8 text-indigo-600">NFe/NFCe XML Processor</h1>
+    <div class="container mx-auto p-6 max-w-5xl">
+        <h1 class="text-3xl font-bold text-center mb-8 text-indigo-600">Processador de XML NFe/NFCe</h1>
 
         <div class="section bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 class="text-xl font-semibold mb-4">1. Importar XML Matriz</h2>
@@ -42,11 +74,17 @@
 
         <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="fieldSelection">
             <h2 class="text-xl font-semibold mb-4">2. Selecionar Campos</h2>
-            <div class="flex items-center space-x-4 mb-4">
-                <input type="file" id="profileFile" accept=".json" class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
-                <button onclick="loadProfile()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Carregar Perfil</button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="flex items-center space-x-4">
+                    <input type="file" id="profileFile" accept=".json" class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
+                    <button onclick="loadProfile()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Carregar Perfil</button>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <input type="text" id="fieldSearch" placeholder="Pesquisar campos..." class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <span id="selectedCount" class="text-sm text-gray-600">0 campos selecionados</span>
+                </div>
             </div>
-            <div id="fieldList" class="max-h-64 overflow-y-auto border border-gray-200 p-4 rounded-md bg-gray-50 mb-4"></div>
+            <div id="fieldList" class="max-h-80 overflow-y-auto border border-gray-200 p-4 rounded-md bg-gray-50 mb-4"></div>
             <div class="flex space-x-4">
                 <button onclick="confirmFields()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Confirmar Campos</button>
                 <button onclick="saveProfile()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Salvar Perfil</button>
@@ -73,10 +111,16 @@
 
         <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="downloadSection">
             <h2 class="text-xl font-semibold mb-4">4. Baixar Relatório</h2>
-            <div id="dataPreview" class="max-h-64 overflow-y-auto border border-gray-200 p-4 rounded-md bg-gray-50 mb-4"></div>
+            <div class="mb-4">
+                <p id="dataSummary" class="text-sm text-gray-600">0 linhas, 0 colunas</p>
+            </div>
+            <div id="dataPreview" class="overflow-x-auto mb-4">
+                <table id="dataTable" class="display w-full"></table>
+            </div>
             <div class="flex space-x-4">
-                <button onclick="downloadJSON()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Baixar JSON</button>
-                <button onclick="downloadCSV()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Baixar CSV</button>
+                <button onclick="downloadJSON()" class="download-btn py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition" title="Baixar como JSON para importação no Excel">Baixar JSON</button>
+                <button onclick="downloadCSV()" class="download-btn py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition" title="Baixar como CSV (delimitado por ;)">Baixar CSV</button>
+                <button onclick="downloadXLSX()" class="download-btn py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition" title="Baixar como Excel (todas colunas como texto)">Baixar XLSX</button>
             </div>
         </div>
 
@@ -147,21 +191,50 @@
                 const details = document.createElement('details');
                 details.className = 'tree-node p-2';
                 const summary = document.createElement('summary');
-                summary.className = 'font-medium';
-                summary.textContent = node;
+                summary.className = 'font-medium flex items-center';
+                summary.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>${node}`;
                 details.appendChild(summary);
                 const childList = document.createElement('div');
-                childList.className = 'ml-4 mt-2';
+                childList.className = 'ml-6 mt-2';
                 const fields = matrixFields[node].fields;
                 fields.sort((a, b) => a.name.localeCompare(b.name)).forEach(field => {
                     const label = document.createElement('label');
                     label.className = 'flex items-center space-x-2 text-sm py-1';
                     label.innerHTML = `<input type="checkbox" value="${field.path}" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500"><span>${field.name}</span>`;
+                    label.dataset.path = field.path;
+                    label.dataset.name = field.name.toLowerCase();
                     childList.appendChild(label);
                 });
                 details.appendChild(childList);
                 fieldList.appendChild(details);
             });
+
+            const searchInput = document.getElementById('fieldSearch');
+            const selectedCount = document.getElementById('selectedCount');
+            function updateSelectedCount() {
+                const count = document.querySelectorAll('#fieldList input:checked').length;
+                selectedCount.textContent = `${count} campos selecionados`;
+            }
+
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.toLowerCase();
+                document.querySelectorAll('#fieldList label').forEach(label => {
+                    const matches = label.dataset.name.includes(query) || label.dataset.path.toLowerCase().includes(query);
+                    label.style.display = matches ? '' : 'none';
+                });
+                document.querySelectorAll('#fieldList details').forEach(details => {
+                    const visibleChildren = details.querySelectorAll('label[style=""]');
+                    details.style.display = visibleChildren.length > 0 ? '' : 'none';
+                });
+            });
+
+            document.querySelectorAll('#fieldList input').forEach(input => {
+                input.addEventListener('change', () => {
+                    input.parentElement.classList.toggle('selected-field', input.checked);
+                    updateSelectedCount();
+                });
+            });
+            updateSelectedCount();
         }
 
         function saveProfile() {
@@ -214,7 +287,10 @@
                     selectedFields = profileData.selectedFields;
                     document.querySelectorAll('#fieldList input').forEach(input => {
                         input.checked = selectedFields.includes(input.value);
+                        input.parentElement.classList.toggle('selected-field', input.checked);
                     });
+                    document.getElementById('fieldSearch').dispatchEvent(new Event('input'));
+                    document.getElementById('selectedCount').textContent = `${selectedFields.length} campos selecionados`;
                     alert('Perfil carregado com sucesso!');
                 } catch (err) {
                     alert('Erro ao carregar o perfil: ' + err.message);
@@ -326,44 +402,42 @@
 
         function displayPreview() {
             const preview = document.getElementById('dataPreview');
-            preview.innerHTML = '';
+            const summary = document.getElementById('dataSummary');
+            preview.innerHTML = '<table id="dataTable" class="display w-full"></table>';
             if (xmlData.length === 0) {
-                preview.innerHTML = '<p class="text-gray-600">Nenhum dado extraído.</p>';
+                summary.textContent = 'Nenhum dado extraído';
                 return;
             }
 
-            const table = document.createElement('table');
-            table.className = 'w-full border-collapse text-sm';
-            const thead = document.createElement('thead');
-            const headerRow = document.createElement('tr');
-            selectedFields.forEach(field => {
-                const th = document.createElement('th');
-                th.className = 'border border-gray-300 p-2 bg-gray-100 text-left';
-                th.textContent = field;
-                headerRow.appendChild(th);
-            });
-            thead.appendChild(headerRow);
-            table.appendChild(thead);
-
-            const tbody = document.createElement('tbody');
-            xmlData.forEach(row => {
-                const tr = document.createElement('tr');
+            summary.textContent = `${xmlData.length} linhas, ${selectedFields.length} colunas`;
+            const tableData = xmlData.map(row => {
+                const obj = {};
                 selectedFields.forEach(field => {
-                    const td = document.createElement('td');
-                    td.className = 'border border-gray-300 p-2';
-                    td.textContent = row[field] || '';
-                    tr.appendChild(td);
+                    obj[field.replace(/\./g, '_')] = row[field] || '';
                 });
-                tbody.appendChild(tr);
+                return obj;
             });
-            table.appendChild(tbody);
 
-            preview.appendChild(table);
+            $('#dataTable').DataTable({
+                data: tableData,
+                columns: selectedFields.map(field => ({
+                    title: field,
+                    data: field.replace(/\./g, '_')
+                })),
+                pageLength: 10,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.6 W/i18n/pt-BR.json'
+                },
+                scrollX: true,
+                destroy: true
+            });
         }
 
-        function downloadJSON() {
+        async function downloadJSON() {
             if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
 
+            const btn = event.target;
+            btn.classList.add('loading');
             try {
                 const jsonData = xmlData.map(row => {
                     const obj = {};
@@ -400,12 +474,16 @@
                 }
             } catch (e) {
                 alert('Erro ao gerar o arquivo JSON: ' + e.message);
+            } finally {
+                btn.classList.remove('loading');
             }
         }
 
-        function downloadCSV() {
+        async function downloadCSV() {
             if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
 
+            const btn = event.target;
+            btn.classList.add('loading');
             try {
                 const headers = selectedFields.map(field => `"${field.replace(/"/g, '""')}"`).join(';');
                 const rows = xmlData.map(row => selectedFields.map(field => `"${row[field]?.replace(/"/g, '""') || ''}"`).join(';'));
@@ -437,6 +515,66 @@
                 }
             } catch (e) {
                 alert('Erro ao gerar o arquivo CSV: ' + e.message);
+            } finally {
+                btn.classList.remove('loading');
+            }
+        }
+
+        async function downloadXLSX() {
+            if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
+
+            const btn = event.target;
+            btn.classList.add('loading');
+            try {
+                const data = xmlData.map(row => {
+                    const obj = {};
+                    selectedFields.forEach(field => {
+                        obj[field] = row[field] || '';
+                    });
+                    return obj;
+                });
+
+                const ws = XLSX.utils.json_to_sheet(data, { header: selectedFields });
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const col = XLSX.utils.encode_col(C);
+                    for (let R = range.s.r; R <= range.e.r; ++R) {
+                        const cell = ws[`${col}${R + 1}`];
+                        if (cell) cell.t = 's';
+                    }
+                }
+
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Relatorio');
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([wbout], { type: 'application/octet-stream' });
+
+                try {
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'relatorio_nfe_nfce.xlsx';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (e) {
+                    console.warn('Blob download failed, trying fallback:', e);
+                    const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(wbout)));
+                    const dataUri = `data:application/octet-stream;base64,${base64}`;
+                    const link = document.createElement('a');
+                    link.href = dataUri;
+                    link.download = 'relatorio_nfe_nfce.xlsx';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => document.body.removeChild(link), 100);
+                }
+            } catch (e) {
+                alert('Erro ao gerar o arquivo XLSX: ' + e.message);
+            } finally {
+                btn.classList.remove('loading');
             }
         }
     </script>
