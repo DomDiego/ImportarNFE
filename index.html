@@ -3,279 +3,1071 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFe/NFCe XML Processor</title>
+    <title>NFe/NFCe XML Processor - Versão Profissional</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        secondary: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-subtle': 'bounceSubtle 2s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        bounceSubtle: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        #fieldList::-webkit-scrollbar, #dataPreview::-webkit-scrollbar {
+        /* Custom scrollbar styles */
+        .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
+            height: 8px;
         }
-        #fieldList::-webkit-scrollbar-track, #dataPreview::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
         }
-        #fieldList::-webkit-scrollbar-thumb, #dataPreview::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            border-radius: 8px;
+            border: 2px solid #f1f5f9;
         }
-        #fieldList::-webkit-scrollbar-thumb:hover, #dataPreview::-webkit-scrollbar-thumb:hover {
-            background: #555;
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #0284c7, #075985);
         }
+
+        /* Glass morphism effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        /* Gradient backgrounds */
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-primary {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        }
+
+        /* Tree node animations */
+        .tree-node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
         .tree-node summary {
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.2s ease;
+            border-radius: 8px;
+            padding: 8px 12px;
         }
+        
         .tree-node summary:hover {
-            background-color: #f3f4f6;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
         }
+        
         .tree-node[open] summary {
-            background-color: #e0e7ff;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: white;
+            box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
         }
+
+        /* Selected field styling */
         .selected-field {
-            background-color: #e0f2fe;
-            border-radius: 4px;
-        }
-        .download-btn {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            border-radius: 8px;
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+            transition: all 0.2s ease;
             position: relative;
-            transition: all 0.2s;
         }
-        .download-btn.loading::after {
+
+        /* Selection order indicator */
+        .selection-order {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+            animation: bounceIn 0.3s ease-out;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Button enhancements */
+        .btn-primary {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0284c7, #075985);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* Loading animation */
+        .loading-spinner {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading-spinner::after {
             content: '';
             position: absolute;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #fff;
-            border-top-color: transparent;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
-            right: 8px;
+            right: 12px;
             top: 50%;
             transform: translateY(-50%);
         }
+
         @keyframes spin {
             to { transform: translateY(-50%) rotate(360deg); }
         }
+
+        /* Progress bar enhancement */
+        .progress-bar {
+            background: linear-gradient(90deg, #0ea5e9, #0284c7, #0369a1);
+            background-size: 200% 100%;
+            animation: progressShine 2s ease-in-out infinite;
+        }
+
+        @keyframes progressShine {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Card hover effects */
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* File input styling */
+        .file-input {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .file-input input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .file-input-label:hover {
+            border-color: #0ea5e9;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            transform: scale(1.02);
+        }
+
+        /* Status indicators */
+        .status-indicator {
+            position: relative;
+        }
+        
+        .status-indicator::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-success::before {
+            background: #10b981;
+        }
+        
+        .status-warning::before {
+            background: #f59e0b;
+        }
+        
+        .status-error::before {
+            background: #ef4444;
+        }
+
+        /* DataTable custom styling */
+        .dataTables_wrapper {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            border-radius: 8px !important;
+            margin: 0 2px !important;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+            border-color: #0ea5e9 !important;
+        }
+
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        .notification.info {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+        }
+
+        /* Field value preview styling */
+        .field-value {
+            font-family: 'Courier New', monospace;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            color: #475569;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .field-item {
+            border-left: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .field-item:hover {
+            border-left-color: #0ea5e9;
+            background: #f8fafc;
+        }
+
+        /* Selected fields preview */
+        .selected-fields-preview {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 2px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .selected-field-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            margin: 4px;
+            box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+        }
+
+        .selected-field-order {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-800">
-    <div class="container mx-auto p-6 max-w-5xl">
-        <h1 class="text-3xl font-bold text-center mb-8 text-indigo-600">Processador de XML NFe/NFCe</h1>
-
-        <div class="section bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-xl font-semibold mb-4">1. Importar XML Matriz</h2>
-            <div class="flex items-center space-x-4">
-                <input type="file" id="matrixFile" accept=".xml" class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
-                <button onclick="loadMatrix()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Carregar Matriz</button>
-            </div>
-        </div>
-
-        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="fieldSelection">
-            <h2 class="text-xl font-semibold mb-4">2. Selecionar Campos</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div class="flex items-center space-x-4">
-                    <input type="file" id="profileFile" accept=".json" class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
-                    <button onclick="loadProfile()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Carregar Perfil</button>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <!-- Header with gradient background -->
+    <header class="gradient-bg text-white py-8 mb-8">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <div class="text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-4 animate-bounce-subtle">
+                    <i class="fas fa-file-code text-2xl"></i>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <input type="text" id="fieldSearch" placeholder="Pesquisar campos..." class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <span id="selectedCount" class="text-sm text-gray-600">0 campos selecionados</span>
+                <h1 class="text-4xl md:text-5xl font-bold mb-2 animate-fade-in">
+                    Processador NFe/NFCe
+                </h1>
+                <p class="text-xl opacity-90 animate-fade-in">
+                    Ferramenta profissional para análise e extração de dados XML
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 max-w-6xl pb-12">
+        <!-- Step 1: Matrix Import -->
+        <div class="card-hover bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl mb-8 border border-white/20 animate-slide-up">
+            <div class="flex items-center mb-6">
+                <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full mr-4 font-bold text-lg">
+                    1
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-upload mr-3 text-blue-500"></i>
+                    Importar XML Matriz
+                </h2>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div class="file-input flex-1">
+                    <input type="file" id="matrixFile" accept=".xml">
+                    <label for="matrixFile" class="file-input-label w-full justify-center">
+                        <i class="fas fa-cloud-upload-alt text-blue-500"></i>
+                        <span>Selecionar arquivo XML matriz</span>
+                    </label>
+                </div>
+                <button onclick="loadMatrix()" class="btn-primary text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-cogs"></i>
+                    Carregar Matriz
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Field Selection -->
+        <div class="card-hover bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl mb-8 border border-white/20 hidden animate-slide-up" id="fieldSelection">
+            <div class="flex items-center mb-6">
+                <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full mr-4 font-bold text-lg">
+                    2
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-list-check mr-3 text-green-500"></i>
+                    Selecionar Campos
+                </h2>
+            </div>
+            
+            <!-- Profile and Search Controls -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-700 flex items-center">
+                        <i class="fas fa-user-cog mr-2 text-blue-500"></i>
+                        Gerenciar Perfil
+                    </h3>
+                    <div class="flex gap-3">
+                        <div class="file-input flex-1">
+                            <input type="file" id="profileFile" accept=".json">
+                            <label for="profileFile" class="file-input-label w-full justify-center text-sm">
+                                <i class="fas fa-folder-open text-blue-500"></i>
+                                <span>Carregar Perfil</span>
+                            </label>
+                        </div>
+                        <button onclick="loadProfile()" class="btn-primary text-white px-4 py-2 rounded-lg font-medium text-sm">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold text-gray-700 flex items-center">
+                        <i class="fas fa-search mr-2 text-blue-500"></i>
+                        Pesquisar Campos
+                    </h3>
+                    <div class="relative">
+                        <input type="text" id="fieldSearch" placeholder="Digite para pesquisar campos..." 
+                               class="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span id="selectedCount" class="text-sm font-medium text-gray-600 status-indicator">
+                            0 campos selecionados
+                        </span>
+                        <button onclick="selectAllVisible()" class="text-blue-500 hover:text-blue-700 text-sm font-medium transition-colors">
+                            Selecionar todos visíveis
+                        </button>
+                    </div>
                 </div>
             </div>
-            <div id="fieldList" class="max-h-80 overflow-y-auto border border-gray-200 p-4 rounded-md bg-gray-50 mb-4"></div>
-            <div class="flex space-x-4">
-                <button onclick="confirmFields()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Confirmar Campos</button>
-                <button onclick="saveProfile()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Salvar Perfil</button>
+            
+            <!-- Field List -->
+            <div id="fieldList" class="max-h-96 overflow-y-auto custom-scrollbar border-2 border-gray-200 rounded-xl p-6 bg-gray-50/50 mb-6">
+                <!-- Fields will be populated here -->
+            </div>
+            
+            <!-- Selected Fields Preview -->
+            <div id="selectedFieldsPreview" class="selected-fields-preview hidden">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="fas fa-eye text-blue-500"></i>
+                    <h4 class="font-semibold text-gray-800">Campos Selecionados (ordem de exportação)</h4>
+                </div>
+                <div id="selectedFieldsList" class="flex flex-wrap">
+                    <!-- Selected fields will be shown here -->
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-4">
+                <button onclick="confirmFields()" class="btn-primary text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2">
+                    <i class="fas fa-check-circle"></i>
+                    Confirmar Campos
+                </button>
+                <button onclick="saveProfile()" class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all transform hover:-translate-y-1">
+                    <i class="fas fa-save"></i>
+                    Salvar Perfil
+                </button>
+                <button onclick="clearSelection()" class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all">
+                    <i class="fas fa-times-circle"></i>
+                    Limpar Seleção
+                </button>
             </div>
         </div>
 
-        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="xmlImport">
-            <h2 class="text-xl font-semibold mb-4">3. Importar XMLs de Dados</h2>
-            <div class="flex items-center space-x-4">
-                <input type="file" id="dataFiles" accept=".xml" multiple class="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-500 file:text-white hover:file:bg-indigo-600 text-sm">
-                <button onclick="processXMLs()" class="py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition">Processar XMLs</button>
+        <!-- Step 3: XML Import -->
+        <div class="card-hover bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl mb-8 border border-white/20 hidden animate-slide-up" id="xmlImport">
+            <div class="flex items-center mb-6">
+                <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full mr-4 font-bold text-lg">
+                    3
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-file-import mr-3 text-orange-500"></i>
+                    Importar XMLs de Dados
+                </h2>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div class="file-input flex-1">
+                    <input type="file" id="dataFiles" accept=".xml" multiple>
+                    <label for="dataFiles" class="file-input-label w-full justify-center">
+                        <i class="fas fa-files text-orange-500"></i>
+                        <span>Selecionar múltiplos arquivos XML</span>
+                    </label>
+                </div>
+                <button onclick="processXMLs()" class="btn-primary text-white px-8 py-3 rounded-xl font-semibold flex items-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-play-circle"></i>
+                    Processar XMLs
+                </button>
             </div>
         </div>
 
-        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="progressSection">
-            <h2 class="text-xl font-semibold mb-4">Progresso</h2>
-            <div id="progressBar" class="w-full h-5 bg-gray-200 rounded-full overflow-hidden">
-                <div id="progress" class="h-full bg-indigo-500 rounded-full" style="width: 0%; transition: width 0.3s;"></div>
+        <!-- Progress Section -->
+        <div class="card-hover bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl mb-8 border border-white/20 hidden animate-slide-up" id="progressSection">
+            <div class="flex items-center mb-6">
+                <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full mr-4">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-chart-line mr-3 text-blue-500"></i>
+                    Progresso do Processamento
+                </h2>
             </div>
-            <p id="progressText" class="mt-2 text-sm text-gray-600">0% - 0/0 arquivos processados</p>
-            <p id="timeText" class="text-sm text-gray-600">Tempo decorrido: 0s | Estimado: 0s</p>
-            <div id="errorLog" class="text-red-500 mt-2 text-sm"></div>
+            
+            <div class="space-y-4">
+                <div class="relative">
+                    <div id="progressBar" class="w-full h-6 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                        <div id="progress" class="h-full progress-bar rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="progressPercentage" class="text-sm font-bold text-gray-700">0%</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-file-alt text-blue-500"></i>
+                        <span id="progressText" class="text-gray-600">0/0 arquivos processados</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-clock text-green-500"></i>
+                        <span id="timeText" class="text-gray-600">Tempo: 0s | Estimado: 0s</span>
+                    </div>
+                </div>
+                
+                <div id="errorLog" class="text-red-600 text-sm bg-red-50 p-3 rounded-lg hidden">
+                    <!-- Errors will be displayed here -->
+                </div>
+            </div>
         </div>
 
-        <div class="section bg-white p-6 rounded-lg shadow-md mb-6 hidden" id="downloadSection">
-            <h2 class="text-xl font-semibold mb-4">4. Baixar Relatório</h2>
-            <div class="mb-4">
-                <p id="dataSummary" class="text-sm text-gray-600">0 linhas, 0 colunas</p>
+        <!-- Step 4: Download Section -->
+        <div class="card-hover bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl mb-8 border border-white/20 hidden animate-slide-up" id="downloadSection">
+            <div class="flex items-center mb-6">
+                <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full mr-4 font-bold text-lg">
+                    4
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-download mr-3 text-green-500"></i>
+                    Baixar Relatório
+                </h2>
             </div>
-            <div id="dataPreview" class="overflow-x-auto mb-4">
+            
+            <!-- Data Summary -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl mb-6 border border-blue-200">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fas fa-chart-bar text-blue-500"></i>
+                    <h3 class="font-semibold text-gray-800">Resumo dos Dados</h3>
+                </div>
+                <p id="dataSummary" class="text-gray-600">0 linhas, 0 colunas</p>
+            </div>
+            
+            <!-- Data Preview -->
+            <div id="dataPreview" class="overflow-x-auto mb-6 rounded-xl border border-gray-200">
                 <table id="dataTable" class="display w-full"></table>
             </div>
-            <div class="flex space-x-4">
-                <button onclick="downloadJSON()" class="download-btn py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition" title="Baixar como JSON para importação no Excel">Baixar JSON</button>
-                <button onclick="downloadCSV()" class="download-btn py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition" title="Baixar como CSV (delimitado por ;)">Baixar CSV</button>
-                <button onclick="downloadXLSX()" class="download-btn py-2 px-4 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition" title="Baixar como Excel (todas colunas como texto)">Baixar XLSX</button>
+            
+            <!-- Download Buttons -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button onclick="downloadJSON()" class="download-btn bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all transform hover:-translate-y-1" title="Baixar como JSON para importação no Excel">
+                    <i class="fas fa-file-code"></i>
+                    <span>JSON</span>
+                </button>
+                <button onclick="downloadCSV()" class="download-btn bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all transform hover:-translate-y-1" title="Baixar como CSV (delimitado por ;)">
+                    <i class="fas fa-file-csv"></i>
+                    <span>CSV</span>
+                </button>
+                <button onclick="downloadXLSX()" class="download-btn bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all transform hover:-translate-y-1" title="Baixar como Excel (todas colunas como texto)">
+                    <i class="fas fa-file-excel"></i>
+                    <span>XLSX</span>
+                </button>
             </div>
         </div>
 
-        <div class="section bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold mb-4">Configurações</h2>
-            <label class="flex items-center space-x-2 text-sm">
-                <span>Atualizar progresso a cada (ms):</span>
-                <input type="number" id="updateInterval" value="1000" min="100" class="w-24 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            </label>
+        <!-- Settings Section -->
+        <div class="card-hover bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 animate-slide-up">
+            <div class="flex items-center mb-6">
+                <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-full mr-4">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-sliders-h mr-3 text-gray-500"></i>
+                    Configurações
+                </h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Intervalo de atualização do progresso (ms):
+                    </label>
+                    <input type="number" id="updateInterval" value="1000" min="100" max="5000" 
+                           class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all">
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Tema da interface:
+                    </label>
+                    <select id="themeSelector" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all">
+                        <option value="light">Claro</option>
+                        <option value="dark">Escuro</option>
+                        <option value="auto">Automático</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
     <script>
         let matrixFields = {};
-        let selectedFields = [];
+        let selectedFields = []; // This will maintain the selection order
+        let selectedFieldsOrder = {}; // Maps field path to selection order
+        let selectionCounter = 0; // Counter for selection order
         let xmlData = [];
         let errors = [];
+        let originalXmlDoc = null; // Store the original XML document
+
+        // Utility function to show notifications
+        function showNotification(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Show notification
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            // Hide and remove notification
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => container.removeChild(notification), 300);
+            }, duration);
+        }
 
         function loadMatrix() {
             const file = document.getElementById('matrixFile').files[0];
-            if (!file) return alert('Selecione um arquivo XML matriz.');
+            if (!file) {
+                showNotification('Selecione um arquivo XML matriz.', 'error');
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
+                    originalXmlDoc = xmlDoc; // Store the original document
                     matrixFields = extractFields(xmlDoc);
                     displayFields();
                     document.getElementById('fieldSelection').classList.remove('hidden');
+                    showNotification('XML matriz carregado com sucesso!', 'success');
                 } catch (err) {
-                    alert('Erro ao processar XML matriz: ' + err.message);
+                    showNotification('Erro ao processar XML matriz: ' + err.message, 'error');
                 }
             };
             reader.readAsText(file);
         }
 
         function extractFields(xmlDoc) {
-            const fieldTree = {};
-            function traverse(node, parentPath = []) {
+            const fieldTree = [];
+            const processedPaths = new Set();
+            
+            function traverse(node, parentPath = [], order = 0) {
                 if (node.nodeType === 1) {
                     const nodeName = node.nodeName;
-                    const currentPath = [...parentPath, nodeName].join('.');
-                    let fields = [];
+                    const currentPath = [...parentPath, nodeName];
+                    const pathString = currentPath.join('.');
+                    
+                    // Check if this node has text content (is a leaf node)
+                    const hasTextContent = node.childNodes.length === 1 && node.childNodes[0].nodeType === 3;
+                    
+                    if (hasTextContent && !processedPaths.has(pathString)) {
+                        const value = node.textContent.trim();
+                        fieldTree.push({
+                            name: nodeName,
+                            path: pathString,
+                            value: value,
+                            parentPath: parentPath.join('.'),
+                            order: order
+                        });
+                        processedPaths.add(pathString);
+                    }
+                    
+                    // Continue traversing children
+                    let childOrder = 0;
                     for (let child of node.childNodes) {
                         if (child.nodeType === 1) {
-                            const childName = child.nodeName;
-                            const childPath = [...parentPath, nodeName, childName].join('.');
-                            if (child.childNodes.length === 1 && child.childNodes[0].nodeType === 3) {
-                                fields.push({ name: childName, path: childPath });
-                            }
-                            traverse(child, [...parentPath, nodeName]);
+                            traverse(child, currentPath, childOrder++);
                         }
-                    }
-                    if (fields.length > 0) {
-                        fieldTree[nodeName] = { path: currentPath, fields };
                     }
                 }
             }
+            
             traverse(xmlDoc.documentElement);
-            return fieldTree;
+            
+            // Group fields by parent path while maintaining order
+            const groupedFields = {};
+            fieldTree.forEach(field => {
+                const parentKey = field.parentPath || 'root';
+                if (!groupedFields[parentKey]) {
+                    groupedFields[parentKey] = {
+                        path: field.parentPath,
+                        fields: []
+                    };
+                }
+                groupedFields[parentKey].fields.push(field);
+            });
+            
+            return groupedFields;
         }
 
         function displayFields() {
             const fieldList = document.getElementById('fieldList');
             fieldList.innerHTML = '';
-            Object.keys(matrixFields).sort().forEach(node => {
+            
+            // Sort parent nodes to maintain XML order
+            const sortedParents = Object.keys(matrixFields).sort((a, b) => {
+                if (a === 'root') return -1;
+                if (b === 'root') return 1;
+                return a.localeCompare(b);
+            });
+            
+            sortedParents.forEach(parentKey => {
+                const nodeData = matrixFields[parentKey];
+                const nodeName = parentKey === 'root' ? 'Campos Raiz' : parentKey.split('.').pop();
+                
                 const details = document.createElement('details');
-                details.className = 'tree-node p-2';
+                details.className = 'tree-node mb-4';
+                details.open = true; // Open by default for better UX
+                
                 const summary = document.createElement('summary');
-                summary.className = 'font-medium flex items-center';
-                summary.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>${node}`;
+                summary.className = 'font-semibold flex items-center cursor-pointer select-none mb-3';
+                summary.innerHTML = `
+                    <i class="fas fa-chevron-right mr-3 transition-transform duration-200"></i>
+                    <i class="fas fa-folder mr-2 text-blue-500"></i>
+                    <span>${nodeName}</span>
+                    <span class="ml-auto text-sm text-gray-500 bg-blue-100 px-2 py-1 rounded-full">${nodeData.fields.length} campos</span>
+                `;
+                
                 details.appendChild(summary);
+                
                 const childList = document.createElement('div');
-                childList.className = 'ml-6 mt-2';
-                const fields = matrixFields[node].fields;
-                fields.sort((a, b) => a.name.localeCompare(b.name)).forEach(field => {
+                childList.className = 'ml-6 space-y-1';
+                
+                // Sort fields by their original order in XML
+                const fields = nodeData.fields.sort((a, b) => a.order - b.order);
+                
+                fields.forEach((field, index) => {
                     const label = document.createElement('label');
-                    label.className = 'flex items-center space-x-2 text-sm py-1';
-                    label.innerHTML = `<input type="checkbox" value="${field.path}" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500"><span>${field.name}</span>`;
+                    label.className = 'field-item flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 relative';
+                    
+                    // Truncate long values for display
+                    const displayValue = field.value.length > 50 ? 
+                        field.value.substring(0, 50) + '...' : field.value;
+                    
+                    label.innerHTML = `
+                        <input type="checkbox" value="${field.path}" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 mt-1 flex-shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i class="fas fa-tag text-gray-400 text-sm"></i>
+                                <span class="text-sm font-medium text-gray-700">${field.name}</span>
+                                <span class="text-xs text-gray-400 font-mono">${field.path}</span>
+                            </div>
+                            <div class="field-value" title="${field.value}">
+                                ${displayValue || '<vazio>'}
+                            </div>
+                        </div>
+                    `;
+                    
                     label.dataset.path = field.path;
                     label.dataset.name = field.name.toLowerCase();
+                    label.dataset.value = field.value.toLowerCase();
                     childList.appendChild(label);
                 });
+                
                 details.appendChild(childList);
                 fieldList.appendChild(details);
+                
+                // Add rotation animation to chevron
+                details.addEventListener('toggle', function() {
+                    const chevron = this.querySelector('.fa-chevron-right');
+                    if (this.open) {
+                        chevron.style.transform = 'rotate(90deg)';
+                    } else {
+                        chevron.style.transform = 'rotate(0deg)';
+                    }
+                });
+                
+                // Set initial chevron state
+                if (details.open) {
+                    const chevron = details.querySelector('.fa-chevron-right');
+                    chevron.style.transform = 'rotate(90deg)';
+                }
             });
 
+            setupFieldInteractions();
+        }
+
+        function setupFieldInteractions() {
             const searchInput = document.getElementById('fieldSearch');
             const selectedCount = document.getElementById('selectedCount');
+            
             function updateSelectedCount() {
-                const count = document.querySelectorAll('#fieldList input:checked').length;
+                const count = selectedFields.length;
                 selectedCount.textContent = `${count} campos selecionados`;
+                selectedCount.className = `text-sm font-medium status-indicator ${count > 0 ? 'status-success text-green-600' : 'text-gray-600'}`;
+                updateSelectedFieldsPreview();
+            }
+
+            function updateSelectedFieldsPreview() {
+                const preview = document.getElementById('selectedFieldsPreview');
+                const list = document.getElementById('selectedFieldsList');
+                
+                if (selectedFields.length === 0) {
+                    preview.classList.add('hidden');
+                    return;
+                }
+                
+                preview.classList.remove('hidden');
+                list.innerHTML = '';
+                
+                selectedFields.forEach((fieldPath, index) => {
+                    const fieldName = fieldPath.split('.').pop();
+                    const tag = document.createElement('div');
+                    tag.className = 'selected-field-tag';
+                    tag.innerHTML = `
+                        <div class="selected-field-order">${index + 1}</div>
+                        <span>${fieldName}</span>
+                        <button onclick="removeSelectedField('${fieldPath}')" class="hover:bg-white/20 rounded-full p-1 transition-colors">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    `;
+                    list.appendChild(tag);
+                });
             }
 
             searchInput.addEventListener('input', () => {
                 const query = searchInput.value.toLowerCase();
                 document.querySelectorAll('#fieldList label').forEach(label => {
-                    const matches = label.dataset.name.includes(query) || label.dataset.path.toLowerCase().includes(query);
+                    const nameMatch = label.dataset.name.includes(query);
+                    const pathMatch = label.dataset.path.toLowerCase().includes(query);
+                    const valueMatch = label.dataset.value.includes(query);
+                    const matches = nameMatch || pathMatch || valueMatch;
                     label.style.display = matches ? '' : 'none';
                 });
+                
                 document.querySelectorAll('#fieldList details').forEach(details => {
-                    const visibleChildren = details.querySelectorAll('label[style=""]');
-                    details.style.display = visibleChildren.length > 0 ? '' : 'none';
+                    const visibleChildren = details.querySelectorAll('label[style=""], label:not([style])');
+                    const hasVisibleChildren = Array.from(visibleChildren).some(child => child.style.display !== 'none');
+                    details.style.display = hasVisibleChildren ? '' : 'none';
                 });
             });
 
             document.querySelectorAll('#fieldList input').forEach(input => {
                 input.addEventListener('change', () => {
-                    input.parentElement.classList.toggle('selected-field', input.checked);
+                    const fieldPath = input.value;
+                    const label = input.closest('label');
+                    
+                    if (input.checked) {
+                        // Add to selection in order
+                        if (!selectedFields.includes(fieldPath)) {
+                            selectedFields.push(fieldPath);
+                            selectedFieldsOrder[fieldPath] = ++selectionCounter;
+                            
+                            // Add visual selection order indicator
+                            const orderIndicator = document.createElement('div');
+                            orderIndicator.className = 'selection-order';
+                            orderIndicator.textContent = selectedFields.length;
+                            label.appendChild(orderIndicator);
+                        }
+                        label.classList.add('selected-field');
+                    } else {
+                        // Remove from selection and reorder
+                        const index = selectedFields.indexOf(fieldPath);
+                        if (index > -1) {
+                            selectedFields.splice(index, 1);
+                            delete selectedFieldsOrder[fieldPath];
+                            
+                            // Remove order indicator
+                            const orderIndicator = label.querySelector('.selection-order');
+                            if (orderIndicator) {
+                                orderIndicator.remove();
+                            }
+                            
+                            // Update order indicators for remaining fields
+                            updateOrderIndicators();
+                        }
+                        label.classList.remove('selected-field');
+                    }
+                    
                     updateSelectedCount();
                 });
             });
+            
             updateSelectedCount();
         }
 
+        function updateOrderIndicators() {
+            document.querySelectorAll('#fieldList .selection-order').forEach(indicator => {
+                indicator.remove();
+            });
+            
+            selectedFields.forEach((fieldPath, index) => {
+                const input = document.querySelector(`#fieldList input[value="${fieldPath}"]`);
+                if (input) {
+                    const label = input.closest('label');
+                    const orderIndicator = document.createElement('div');
+                    orderIndicator.className = 'selection-order';
+                    orderIndicator.textContent = index + 1;
+                    label.appendChild(orderIndicator);
+                }
+            });
+        }
+
+        function removeSelectedField(fieldPath) {
+            const input = document.querySelector(`#fieldList input[value="${fieldPath}"]`);
+            if (input) {
+                input.checked = false;
+                input.dispatchEvent(new Event('change'));
+            }
+        }
+
+        function selectAllVisible() {
+            const visibleInputs = document.querySelectorAll('#fieldList label:not([style*="display: none"]) input[type="checkbox"]');
+            const allChecked = Array.from(visibleInputs).every(input => input.checked);
+            
+            visibleInputs.forEach(input => {
+                if (!allChecked && !input.checked) {
+                    input.checked = true;
+                    input.dispatchEvent(new Event('change'));
+                } else if (allChecked && input.checked) {
+                    input.checked = false;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+            
+            showNotification(`${allChecked ? 'Desmarcados' : 'Selecionados'} ${visibleInputs.length} campos visíveis`, 'info');
+        }
+
+        function clearSelection() {
+            selectedFields = [];
+            selectedFieldsOrder = {};
+            selectionCounter = 0;
+            
+            document.querySelectorAll('#fieldList input:checked').forEach(input => {
+                input.checked = false;
+                const label = input.closest('label');
+                label.classList.remove('selected-field');
+                const orderIndicator = label.querySelector('.selection-order');
+                if (orderIndicator) {
+                    orderIndicator.remove();
+                }
+            });
+            
+            document.getElementById('selectedCount').textContent = '0 campos selecionados';
+            document.getElementById('selectedCount').className = 'text-sm font-medium text-gray-600';
+            document.getElementById('selectedFieldsPreview').classList.add('hidden');
+            showNotification('Seleção limpa', 'info');
+        }
+
         function saveProfile() {
-            const selected = Array.from(document.querySelectorAll('#fieldList input:checked')).map(input => input.value);
-            if (selected.length === 0) return alert('Selecione pelo menos um campo para salvar o perfil.');
+            if (selectedFields.length === 0) {
+                showNotification('Selecione pelo menos um campo para salvar o perfil.', 'error');
+                return;
+            }
 
             try {
-                const profileData = { selectedFields: selected };
+                const profileData = { 
+                    selectedFields: selectedFields, // Maintains selection order
+                    selectedFieldsOrder: selectedFieldsOrder,
+                    createdAt: new Date().toISOString(),
+                    version: '3.0'
+                };
                 const jsonString = JSON.stringify(profileData, null, 2);
                 const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
 
-                try {
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'profile_nfe_nfce.json';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => {
-                        document.body.removeChild(link);
-                        window.URL.revokeObjectURL(url);
-                    }, 100);
-                } catch (e) {
-                    console.warn('Blob download failed, trying fallback:', e);
-                    const base64 = btoa(unescape(encodeURIComponent(jsonString)));
-                    const dataUri = `data:application/json;base64,${base64}`;
-                    const link = document.createElement('a');
-                    link.href = dataUri;
-                    link.download = 'profile_nfe_nfce.json';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => document.body.removeChild(link), 100);
-                }
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `profile_nfe_nfce_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                showNotification('Perfil salvo com sucesso!', 'success');
             } catch (e) {
-                alert('Erro ao salvar o perfil: ' + e.message);
+                showNotification('Erro ao salvar o perfil: ' + e.message, 'error');
             }
         }
 
         function loadProfile() {
             const file = document.getElementById('profileFile').files[0];
-            if (!file) return alert('Selecione um arquivo de perfil JSON.');
+            if (!file) {
+                showNotification('Selecione um arquivo de perfil JSON.', 'error');
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -284,30 +1076,88 @@
                     if (!profileData.selectedFields || !Array.isArray(profileData.selectedFields)) {
                         throw new Error('Formato de perfil inválido.');
                     }
-                    selectedFields = profileData.selectedFields;
-                    document.querySelectorAll('#fieldList input').forEach(input => {
-                        input.checked = selectedFields.includes(input.value);
-                        input.parentElement.classList.toggle('selected-field', input.checked);
+                    
+                    // Clear current selection
+                    clearSelection();
+                    
+                    // Load fields in the saved order
+                    selectedFields = [...profileData.selectedFields];
+                    selectedFieldsOrder = profileData.selectedFieldsOrder || {};
+                    selectionCounter = selectedFields.length;
+                    
+                    // Update UI
+                    selectedFields.forEach((fieldPath, index) => {
+                        const input = document.querySelector(`#fieldList input[value="${fieldPath}"]`);
+                        if (input) {
+                            input.checked = true;
+                            const label = input.closest('label');
+                            label.classList.add('selected-field');
+                            
+                            const orderIndicator = document.createElement('div');
+                            orderIndicator.className = 'selection-order';
+                            orderIndicator.textContent = index + 1;
+                            label.appendChild(orderIndicator);
+                        }
                     });
-                    document.getElementById('fieldSearch').dispatchEvent(new Event('input'));
-                    document.getElementById('selectedCount').textContent = `${selectedFields.length} campos selecionados`;
-                    alert('Perfil carregado com sucesso!');
+                    
+                    const count = selectedFields.length;
+                    document.getElementById('selectedCount').textContent = `${count} campos selecionados`;
+                    document.getElementById('selectedCount').className = `text-sm font-medium status-indicator ${count > 0 ? 'status-success text-green-600' : 'text-gray-600'}`;
+                    
+                    // Update preview
+                    updateSelectedFieldsPreview();
+                    
+                    showNotification('Perfil carregado com sucesso!', 'success');
                 } catch (err) {
-                    alert('Erro ao carregar o perfil: ' + err.message);
+                    showNotification('Erro ao carregar o perfil: ' + err.message, 'error');
                 }
             };
             reader.readAsText(file);
         }
 
+        function updateSelectedFieldsPreview() {
+            const preview = document.getElementById('selectedFieldsPreview');
+            const list = document.getElementById('selectedFieldsList');
+            
+            if (selectedFields.length === 0) {
+                preview.classList.add('hidden');
+                return;
+            }
+            
+            preview.classList.remove('hidden');
+            list.innerHTML = '';
+            
+            selectedFields.forEach((fieldPath, index) => {
+                const fieldName = fieldPath.split('.').pop();
+                const tag = document.createElement('div');
+                tag.className = 'selected-field-tag';
+                tag.innerHTML = `
+                    <div class="selected-field-order">${index + 1}</div>
+                    <span>${fieldName}</span>
+                    <button onclick="removeSelectedField('${fieldPath}')" class="hover:bg-white/20 rounded-full p-1 transition-colors">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                `;
+                list.appendChild(tag);
+            });
+        }
+
         function confirmFields() {
-            selectedFields = Array.from(document.querySelectorAll('#fieldList input:checked')).map(input => input.value);
-            if (selectedFields.length === 0) return alert('Selecione pelo menos um campo.');
+            if (selectedFields.length === 0) {
+                showNotification('Selecione pelo menos um campo.', 'error');
+                return;
+            }
+            
             document.getElementById('xmlImport').classList.remove('hidden');
+            showNotification(`${selectedFields.length} campos confirmados na ordem de seleção!`, 'success');
         }
 
         async function processXMLs() {
             const files = document.getElementById('dataFiles').files;
-            if (files.length === 0) return alert('Selecione pelo menos um arquivo XML.');
+            if (files.length === 0) {
+                showNotification('Selecione pelo menos um arquivo XML.', 'error');
+                return;
+            }
 
             xmlData = [];
             errors = [];
@@ -315,6 +1165,7 @@
             const progressSection = document.getElementById('progressSection');
             const progress = document.getElementById('progress');
             const progressText = document.getElementById('progressText');
+            const progressPercentage = document.getElementById('progressPercentage');
             const timeText = document.getElementById('timeText');
             const errorLog = document.getElementById('errorLog');
 
@@ -326,29 +1177,51 @@
             const updateProgress = () => {
                 const percent = (processed / total) * 100;
                 progress.style.width = `${percent}%`;
-                progressText.textContent = `${percent.toFixed(1)}% - ${processed}/${total} arquivos processados`;
+                progressPercentage.textContent = `${percent.toFixed(1)}%`;
+                progressText.textContent = `${processed}/${total} arquivos processados`;
+                
                 const elapsed = (performance.now() - startTime) / 1000;
                 const estimated = processed > 0 ? (elapsed / processed) * (total - processed) : 0;
-                timeText.textContent = `Tempo decorrido: ${elapsed.toFixed(1)}s | Estimado: ${estimated.toFixed(1)}s`;
-                errorLog.textContent = errors.length > 0 ? `Erros: ${errors.join('; ')}` : '';
+                timeText.textContent = `Tempo: ${elapsed.toFixed(1)}s | Estimado: ${estimated.toFixed(1)}s`;
+                
+                if (errors.length > 0) {
+                    errorLog.classList.remove('hidden');
+                    errorLog.innerHTML = `
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fas fa-exclamation-triangle text-red-500"></i>
+                            <strong>Erros encontrados (${errors.length}):</strong>
+                        </div>
+                        <ul class="list-disc list-inside space-y-1">
+                            ${errors.slice(0, 5).map(error => `<li>${error}</li>`).join('')}
+                            ${errors.length > 5 ? `<li class="text-gray-500">... e mais ${errors.length - 5} erros</li>` : ''}
+                        </ul>
+                    `;
+                }
             };
+
+            showNotification('Iniciando processamento dos XMLs...', 'info');
 
             for (let file of files) {
                 try {
                     const data = await readFile(file);
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(data, 'text/xml');
+                    
                     const mod = xmlDoc.querySelector('mod')?.textContent;
-                    if (mod !== '55' && mod !== '65') throw new Error('XML inválido: mod não é 55 ou 65');
+                    if (mod !== '55' && mod !== '65') {
+                        throw new Error('XML inválido: mod não é 55 ou 65');
+                    }
+                    
                     const rows = extractData(xmlDoc);
                     xmlData.push(...rows);
                     processed++;
-                    if (processed % Math.ceil(total / 100) === 0) {
+                    
+                    if (processed % Math.ceil(total / 100) === 0 || processed === total) {
                         updateProgress();
                         await new Promise(resolve => setTimeout(resolve, 0));
                     }
                 } catch (err) {
-                    errors.push(`Erro no arquivo ${file.name}: ${err.message}`);
+                    errors.push(`${file.name}: ${err.message}`);
                     processed++;
                 }
             }
@@ -356,6 +1229,12 @@
             updateProgress();
             displayPreview();
             document.getElementById('downloadSection').classList.remove('hidden');
+            
+            if (errors.length === 0) {
+                showNotification('Processamento concluído com sucesso!', 'success');
+            } else {
+                showNotification(`Processamento concluído com ${errors.length} erros`, 'error');
+            }
         }
 
         function readFile(file) {
@@ -370,6 +1249,8 @@
         function extractData(xmlDoc) {
             const rows = [];
             const repeatingPrefix = 'det';
+            
+            // Use selectedFields array to maintain order
             const fieldInstances = selectedFields.map(field => {
                 const parts = field.split('.');
                 const fieldName = parts.pop();
@@ -404,14 +1285,37 @@
             const preview = document.getElementById('dataPreview');
             const summary = document.getElementById('dataSummary');
             preview.innerHTML = '<table id="dataTable" class="display w-full"></table>';
+            
             if (xmlData.length === 0) {
-                summary.textContent = 'Nenhum dado extraído';
+                summary.innerHTML = `
+                    <div class="flex items-center gap-2 text-gray-500">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Nenhum dado extraído</span>
+                    </div>
+                `;
                 return;
             }
 
-            summary.textContent = `${xmlData.length} linhas, ${selectedFields.length} colunas`;
+            summary.innerHTML = `
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-table text-blue-500"></i>
+                        <span><strong>${xmlData.length}</strong> linhas</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-columns text-green-500"></i>
+                        <span><strong>${selectedFields.length}</strong> colunas</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-sort-numeric-down text-purple-500"></i>
+                        <span>Ordem de seleção preservada</span>
+                    </div>
+                </div>
+            `;
+            
             const tableData = xmlData.map(row => {
                 const obj = {};
+                // Use selectedFields order for consistent column order
                 selectedFields.forEach(field => {
                     obj[field.replace(/\./g, '_')] = row[field] || '';
                 });
@@ -426,21 +1330,31 @@
                 })),
                 pageLength: 10,
                 language: {
-                    url: '//cdn.datatables.net/plug-ins/1.13.6 W/i18n/pt-BR.json'
+                    url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
                 },
                 scrollX: true,
-                destroy: true
+                destroy: true,
+                responsive: true,
+                dom: 'Bfrtip',
+                buttons: [
+                    'copy', 'csv', 'excel', 'pdf', 'print'
+                ]
             });
         }
 
         async function downloadJSON() {
-            if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
+            if (xmlData.length === 0) {
+                showNotification('Nenhum dado para exportar.', 'error');
+                return;
+            }
 
-            const btn = event.target;
-            btn.classList.add('loading');
+            const btn = event.target.closest('button');
+            btn.classList.add('loading-spinner');
+            
             try {
                 const jsonData = xmlData.map(row => {
                     const obj = {};
+                    // Use selectedFields order for consistent export order
                     selectedFields.forEach(field => {
                         obj[field.replace(/\./g, '_')] = row[field] || '';
                     });
@@ -450,84 +1364,78 @@
                 const jsonString = JSON.stringify(jsonData, null, 2);
                 const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
 
-                try {
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'relatorio_nfe_nfce.json';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => {
-                        document.body.removeChild(link);
-                        window.URL.revokeObjectURL(url);
-                    }, 100);
-                } catch (e) {
-                    console.warn('Blob download failed, trying fallback:', e);
-                    const base64 = btoa(unescape(encodeURIComponent(jsonString)));
-                    const dataUri = `data:application/json;base64,${base64}`;
-                    const link = document.createElement('a');
-                    link.href = dataUri;
-                    link.download = 'relatorio_nfe_nfce.json';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => document.body.removeChild(link), 100);
-                }
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `relatorio_nfe_nfce_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                showNotification('Arquivo JSON baixado com ordem de seleção preservada!', 'success');
             } catch (e) {
-                alert('Erro ao gerar o arquivo JSON: ' + e.message);
+                showNotification('Erro ao gerar o arquivo JSON: ' + e.message, 'error');
             } finally {
-                btn.classList.remove('loading');
+                btn.classList.remove('loading-spinner');
             }
         }
 
         async function downloadCSV() {
-            if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
+            if (xmlData.length === 0) {
+                showNotification('Nenhum dado para exportar.', 'error');
+                return;
+            }
 
-            const btn = event.target;
-            btn.classList.add('loading');
+            const btn = event.target.closest('button');
+            btn.classList.add('loading-spinner');
+            
             try {
+                // Use selectedFields order for headers
                 const headers = selectedFields.map(field => `"${field.replace(/"/g, '""')}"`).join(';');
-                const rows = xmlData.map(row => selectedFields.map(field => `"${row[field]?.replace(/"/g, '""') || ''}"`).join(';'));
+                const rows = xmlData.map(row => 
+                    selectedFields.map(field => `"${(row[field] || '').toString().replace(/"/g, '""')}"`).join(';')
+                );
                 const csv = [headers, ...rows].join('\n');
                 const BOM = '\uFEFF';
                 const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
 
-                try {
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'relatorio_nfe_nfce.csv';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => {
-                        document.body.removeChild(link);
-                        window.URL.revokeObjectURL(url);
-                    }, 100);
-                } catch (e) {
-                    console.warn('Blob download failed, trying fallback:', e);
-                    const base64 = btoa(unescape(encodeURIComponent(BOM + csv)));
-                    const dataUri = `data:text/csv;base64,${base64}`;
-                    const link = document.createElement('a');
-                    link.href = dataUri;
-                    link.download = 'relatorio_nfe_nfce.csv';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => document.body.removeChild(link), 100);
-                }
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `relatorio_nfe_nfce_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                showNotification('Arquivo CSV baixado com ordem de seleção preservada!', 'success');
             } catch (e) {
-                alert('Erro ao gerar o arquivo CSV: ' + e.message);
+                showNotification('Erro ao gerar o arquivo CSV: ' + e.message, 'error');
             } finally {
-                btn.classList.remove('loading');
+                btn.classList.remove('loading-spinner');
             }
         }
 
         async function downloadXLSX() {
-            if (xmlData.length === 0) return alert('Nenhum dado para exportar.');
+            if (xmlData.length === 0) {
+                showNotification('Nenhum dado para exportar.', 'error');
+                return;
+            }
 
-            const btn = event.target;
-            btn.classList.add('loading');
+            const btn = event.target.closest('button');
+            btn.classList.add('loading-spinner');
+            
             try {
                 const data = xmlData.map(row => {
                     const obj = {};
+                    // Use selectedFields order for consistent column order
                     selectedFields.forEach(field => {
                         obj[field] = row[field] || '';
                     });
@@ -536,47 +1444,36 @@
 
                 const ws = XLSX.utils.json_to_sheet(data, { header: selectedFields });
                 const range = XLSX.utils.decode_range(ws['!ref']);
+                
+                // Format all cells as text
                 for (let C = range.s.c; C <= range.e.c; ++C) {
                     const col = XLSX.utils.encode_col(C);
                     for (let R = range.s.r; R <= range.e.r; ++R) {
-                        const cell = ws[`${col}${R + 1}`];
-                        if (cell) cell.t = 's';
+                        const cell = ws[col + R];
+                        if (cell && cell.v != null) {
+                            cell.t = 's';
+                            cell.v = cell.v.toString();
+                        }
                     }
                 }
 
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Relatorio');
-                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                const blob = new Blob([wbout], { type: 'application/octet-stream' });
-
-                try {
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'relatorio_nfe_nfce.xlsx';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => {
-                        document.body.removeChild(link);
-                        window.URL.revokeObjectURL(url);
-                    }, 100);
-                } catch (e) {
-                    console.warn('Blob download failed, trying fallback:', e);
-                    const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(wbout)));
-                    const dataUri = `data:application/octet-stream;base64,${base64}`;
-                    const link = document.createElement('a');
-                    link.href = dataUri;
-                    link.download = 'relatorio_nfe_nfce.xlsx';
-                    document.body.appendChild(link);
-                    link.click();
-                    setTimeout(() => document.body.removeChild(link), 100);
-                }
+                XLSX.utils.book_append_sheet(wb, ws, 'NFe_NFCe_Data');
+                XLSX.writeFile(wb, `relatorio_nfe_nfce_${new Date().toISOString().split('T')[0]}.xlsx`);
+                
+                showNotification('Arquivo XLSX baixado com ordem de seleção preservada!', 'success');
             } catch (e) {
-                alert('Erro ao gerar o arquivo XLSX: ' + e.message);
+                showNotification('Erro ao gerar o arquivo XLSX: ' + e.message, 'error');
             } finally {
-                btn.classList.remove('loading');
+                btn.classList.remove('loading-spinner');
             }
         }
+
+        // Initialize theme
+        document.addEventListener('DOMContentLoaded', function() {
+            showNotification('Sistema carregado e pronto para uso!', 'success');
+        });
     </script>
 </body>
 </html>
+
